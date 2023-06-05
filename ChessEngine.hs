@@ -1,7 +1,10 @@
+import Debug.Trace
+
 type Location = (Char, Int)
 data Player = White | Black deriving (Show, Eq)
 data Piece = P Location | N Location | K Location | Q Location | R Location | B Location deriving (Show, Eq)
 type Board = (Player, [Piece], [Piece])
+
 
 setBoard :: Board
 setBoard = (White, whitePieces, blackPieces)
@@ -38,7 +41,7 @@ visualizeSquare (piece:_) colour =
     Q (_, _) -> " Q" ++ [colour] ++ " |"
     R (_, _) -> " R" ++ [colour] ++ " |"
     B (_, _) -> " B" ++ [colour] ++ " |"
-    _ -> "      |"
+    _ -> " " ++ " " ++ "  |"
 
 
 visualizeRow :: [Piece] -> [Piece] -> (Int, Int) -> String
@@ -74,63 +77,73 @@ indexof :: Eq a => a -> [a] -> Int
 indexof _ [] = 0
 indexof x (y:ys) = if x == y then 0 else 1 + indexof x ys
 
-isLinemoveLegal :: Location -> Location -> Board -> Bool
-isLinemoveLegal (startLetter, startNumber) (endLetter, endNumber) (player, whitePieces, blackPieces) = 
 
-    if endNumber > 8 || endNumber < 1 then False
-    else if startLetter == endLetter && startNumber == endNumber then True
-    else if filterPieces whitePieces (startLetter, startNumber) /= [] then False 
-    else if filterPieces blackPieces (startLetter, startNumber) /= [] then False
-    else if nextLetterIndex > 7 || nextLetterIndex < 0 then False
-    else isLinemoveLegal (letters!!nextLetterIndex, nextNumber) (endLetter, endNumber) (player, whitePieces, blackPieces)
+isDiagonalMoveLegal :: Piece -> Location -> Location -> Board -> Bool
+isDiagonalMoveLegal piece (startLetter, startNumber) (endLetter, endNumber) (player, whitePieces, blackPieces)
+  | endNumber > 8 || endNumber < 1 = False
+  | startLetter == endLetter && startNumber == endNumber = True
+  | startLetter == endLetter || startNumber == endNumber = False
+  | filterPieces whitePieces (startLetter, startNumber) /= [] && filterPieces whitePieces (startLetter, startNumber) /= [piece] = False 
+  | filterPieces blackPieces (startLetter, startNumber) /= [] && filterPieces blackPieces (startLetter, startNumber) /= [piece] = False
+  | nextLetterIndex > 7 || nextLetterIndex < 0 = False
+  | otherwise = isDiagonalMoveLegal piece (letters!!nextLetterIndex, nextNumber) (endLetter, endNumber) (player, whitePieces, blackPieces)
+  where
+    letters = ['a','b','c','d','e','f','g','h']
+    nextLetterIndex 
+      | indexof endLetter letters > indexof startLetter letters = indexof startLetter letters + 1 
+      | indexof endLetter letters < indexof startLetter letters = indexof startLetter letters - 1
+      | otherwise = indexof startLetter letters
+    nextNumber
+      | endNumber > startNumber = startNumber + 1
+      | endNumber < startNumber = startNumber - 1
+      | otherwise = startNumber
 
-    where
-      letters = ['a','b','c','d','e','f','g','h']
-      nextLetterIndex = 
-        if indexof endLetter letters > indexof startLetter letters 
-          then indexof startLetter letters + 1 
-          else if indexof endLetter letters > indexof startLetter letters 
-            then indexof startLetter letters - 1
-            else indexof startLetter letters
 
-      nextNumber = 
-        if startNumber > endNumber 
-          then startNumber - 1
-          else if startNumber < endNumber 
-            then startNumber + 1
-            else startNumber
+isHorizontalMoveLegal :: Piece -> Location -> Location -> Board -> Bool
+isHorizontalMoveLegal piece (startLetter, startNumber) (endLetter, endNumber) (player, whitePieces, blackPieces)
+  | endNumber > 8 || endNumber < 1 = False
+  | startLetter == endLetter && startNumber == endNumber = True
+  | startLetter /= endLetter && startNumber /= endNumber = False
+  | filterPieces whitePieces (startLetter, startNumber) /= [] && filterPieces whitePieces (startLetter, startNumber) /= [piece] = False 
+  | filterPieces blackPieces (startLetter, startNumber) /= [] && filterPieces blackPieces (startLetter, startNumber) /= [piece] = False
+  | nextLetterIndex > 7 || nextLetterIndex < 0 = False
+  | otherwise = isHorizontalMoveLegal piece (letters!!nextLetterIndex, nextNumber) (endLetter, endNumber) (player, whitePieces, blackPieces)
+  where
+    letters = ['a','b','c','d','e','f','g','h']
+    nextLetterIndex 
+      | indexof endLetter letters > indexof startLetter letters = indexof startLetter letters + 1 
+      | indexof endLetter letters < indexof startLetter letters = indexof startLetter letters - 1
+      | otherwise = indexof startLetter letters
+    nextNumber
+      | endNumber > startNumber = startNumber + 1
+      | endNumber < startNumber = startNumber - 1
+      | otherwise = startNumber
 
 
 isLegal:: Piece -> Board -> Location -> Bool
-isLegal piece (_, whitePieces, blackPieces) (targetLetter,targetNumber) = 
-
-    if filterPieces allyPieces (targetLetter, targetNumber) /= [] 
-      then False 
-    else
+isLegal piece (turn, whitePieces, blackPieces) (targetLetter,targetNumber) = 
+      if filterPieces allyPieces (targetLetter, targetNumber) /= [] 
+        then False 
+      else
       case piece of
       P (letter, number) ->  
           if filterPieces enemyPieces (targetLetter,targetNumber) == []
-            then if letters!!targetLetterIndex == letter && number + 1 == targetNumber then True  
-            else if letters!!targetLetterIndex == letter && number - 1 == targetNumber then True  
-            else if letters!!(targetLetterIndex) == letter && number + 2 == targetNumber then True
-            else if letters!!(targetLetterIndex) == letter && number - 2 == targetNumber then True
+            then if letters!!targetLetterIndex == letter && number + 1 == targetNumber && filterPieces whitePieces (letter, number) /= [] then True  
+            else if letters!!targetLetterIndex == letter && number - 1 == targetNumber && filterPieces blackPieces (letter, number) /= [] then True  
+            else if letters!!(targetLetterIndex) == letter && number + 2 == targetNumber && isLegal piece (turn, whitePieces, blackPieces) (targetLetter,3) && filterPieces whitePieces (letter, number) /= [] then True
+            else if letters!!(targetLetterIndex) == letter && number - 2 == targetNumber && isLegal piece (turn, whitePieces, blackPieces) (targetLetter,6) && filterPieces blackPieces (letter, number) /= [] then True
             else False
           else 
-            if targetLetterIndex /= 7 && letters!!(targetLetterIndex+1) == letter && number + 1 == targetNumber then True
-            else if targetLetterIndex /= 7 && letters!!(targetLetterIndex+1) == letter && number - 1 == targetNumber then True
-            else if targetLetterIndex /= 0 && letters!!(targetLetterIndex-1) == letter && number + 1 == targetNumber then True
-            else if targetLetterIndex /= 0 && letters!!(targetLetterIndex-1) == letter && number - 1 == targetNumber then True  
+            if targetLetterIndex /= 7 && letters!!(targetLetterIndex+1) == letter && number + 1 == targetNumber && filterPieces whitePieces (letter, number) /= []  then True
+            else if targetLetterIndex /= 7 && letters!!(targetLetterIndex+1) == letter && number - 1 == targetNumber  && filterPieces blackPieces (letter, number) /= [] then True
+            else if targetLetterIndex /= 0 && letters!!(targetLetterIndex-1) == letter && number + 1 == targetNumber && filterPieces whitePieces (letter, number) /= [] then True
+            else if targetLetterIndex /= 0 && letters!!(targetLetterIndex-1) == letter && number - 1 == targetNumber  && filterPieces blackPieces (letter, number) /= [] then True  
             else False
       N (letter, number) ->
-          if letter == targetLetter || number == targetNumber then False
-          else if targetLetterIndex /= 0 && letters!!(targetLetterIndex-1) == letter && number + 2 == targetNumber then True
-          else if targetLetterIndex /= 0 && letters!!(targetLetterIndex-1) == letter && number - 2 == targetNumber then True
-          else if targetLetterIndex /= 7 && letters!!(targetLetterIndex+1) == letter && number + 2 == targetNumber then True
-          else if targetLetterIndex /= 7 && letters!!(targetLetterIndex+1) == letter && number - 2 == targetNumber then True
-          else if targetLetterIndex >= 2 && letters!!(targetLetterIndex-2) == letter && number + 1 == targetNumber then True
-          else if targetLetterIndex >= 2 && letters!!(targetLetterIndex-2) == letter && number - 1 == targetNumber then True
-          else if targetLetterIndex <= 5 && letters!!(targetLetterIndex+2) == letter && number + 1 == targetNumber then True
-          else if targetLetterIndex <= 5 && letters!!(targetLetterIndex+2) == letter && number - 1 == targetNumber then True
+          if targetLetterIndex /= 0 && letters!!(targetLetterIndex-1) == letter && (number + 2 == targetNumber || number - 2 == targetNumber) then True
+          else if targetLetterIndex /= 7 && letters!!(targetLetterIndex+1) == letter && (number + 2 == targetNumber || number - 2 == targetNumber) then True
+          else if targetLetterIndex >= 2 && letters!!(targetLetterIndex-2) == letter && (number + 1 == targetNumber || number - 1 == targetNumber) then True
+          else if targetLetterIndex <= 5 && letters!!(targetLetterIndex+2) == letter && (number + 1 == targetNumber || number - 1 == targetNumber) then True
           else False
       K (letter, number) -> 
           if targetLetterIndex /= 0 && letters!!(targetLetterIndex-1) == letter && number + 1 == targetNumber then True
@@ -143,14 +156,15 @@ isLegal piece (_, whitePieces, blackPieces) (targetLetter,targetNumber) =
           else if targetLetterIndex /= 7 && letters!!(targetLetterIndex+1) == letter && number - 1 == targetNumber then True
           else False
       Q (letter,number) -> 
-          isLinemoveLegal (letter, number) (targetLetter, targetNumber) (player, whitePieces, blackPieces) 
+          isDiagonalMoveLegal piece (letter, number) (targetLetter, targetNumber) (player, whitePieces, blackPieces) ||
+          isHorizontalMoveLegal piece (letter, number) (targetLetter, targetNumber) (player, whitePieces, blackPieces)
       R (letter,number) -> 
-          isLinemoveLegal (letter, number) (targetLetter, targetNumber) (player, whitePieces, blackPieces)
+          (letter == targetLetter || number == targetNumber) && isHorizontalMoveLegal piece (letter, number) (targetLetter, targetNumber) (player, whitePieces, blackPieces)
       B (letter,number) -> 
-          isLinemoveLegal (letter, number) (targetLetter, targetNumber) (player, whitePieces, blackPieces)
+          (letter /= targetLetter && number /= targetNumber) && isDiagonalMoveLegal piece (letter, number) (targetLetter, targetNumber) (player, whitePieces, blackPieces)
       
       where
-        player = if filterPieces whitePieces (targetLetter, targetNumber) /= [] then White else Black
+        player = if elem piece whitePieces then White else Black
         allyPieces = if player == White then whitePieces else blackPieces
         enemyPieces = if player == White then blackPieces else whitePieces
         letters = ['a','b','c','d','e','f','g','h']
@@ -195,15 +209,29 @@ editBoard targetPiece (endLetter, endNumber) (piece:pieces) =
       piece : editBoard targetPiece (endLetter, endNumber) pieces
 
 
+filterByColour :: Piece -> [Piece] -> Bool
+filterByColour piece pieces =
+  if elem piece pieces
+    then True
+    else False 
+
+
 move:: Piece -> Location -> Board -> Board
-move piece location (player, whitePieces, blackPieces) = 
+move piece location (player, whitePieces, blackPieces) =
+    if player == White && (elem piece blackPieces) then
+      error "This is White player's turn, Black can't move." 
+    else if player == Black && (elem piece whitePieces) then
+      error "This is Black player's turn, White can't move."
+    else if isLegal piece (player, whitePieces, blackPieces) location == False
+      then error ("Illegal move for piece " ++ show piece)
+    else
       (
         enemy,
         editBoard piece location removedWhitePieces,
         editBoard piece location removedBlackPieces
       )
     where
-        ally = if filterPieces whitePieces location /= [] then White else Black  
         enemy = if player == White then Black else White
+        enemyPieces = if player == White then blackPieces else whitePieces
         removedWhitePieces = removePiece location whitePieces
         removedBlackPieces = removePiece location blackPieces
