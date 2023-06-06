@@ -41,7 +41,7 @@ visualizeSquare (piece:_) colour =
     Q (_, _) -> " Q" ++ [colour] ++ " |"
     R (_, _) -> " R" ++ [colour] ++ " |"
     B (_, _) -> " B" ++ [colour] ++ " |"
-    _ -> " " ++ " " ++ "  |"
+    _ -> "  |"
 
 
 visualizeRow :: [Piece] -> [Piece] -> (Int, Int) -> String
@@ -52,7 +52,7 @@ visualizeRow whitePieces blackPieces (row, index) =
         then visualizeSquare filteredWhitePieces 'W' ++ visualizeRow whitePieces blackPieces (row, index+1)
     else if(filteredBlackPieces /= [])
         then visualizeSquare filteredBlackPieces 'B' ++ visualizeRow whitePieces blackPieces (row, index+1)
-        else "   |" ++ visualizeRow whitePieces blackPieces (row, index+1)
+        else "    |" ++ visualizeRow whitePieces blackPieces (row, index+1)
     where
         letters = ['a','b','c','d','e','f','g','h']
         filteredWhitePieces = filterPieces whitePieces (letters!!index, row)
@@ -180,12 +180,12 @@ removePiece:: Location -> [Piece] -> [Piece]
 removePiece _ [] = []
 removePiece (targetletter, targetnumber) (piece:pieces) = 
     case piece of
-      P (letter, number) -> if letter == targetletter && number == targetnumber then pieces else piece : removePiece (letter, number) pieces
-      N (letter, number) -> if letter == targetletter && number == targetnumber then pieces else piece : removePiece (letter, number) pieces
-      K (letter, number) -> if letter == targetletter && number == targetnumber then pieces else piece : removePiece (letter, number) pieces
-      Q (letter, number) -> if letter == targetletter && number == targetnumber then pieces else piece : removePiece (letter, number) pieces
-      R (letter, number) -> if letter == targetletter && number == targetnumber then pieces else piece : removePiece (letter, number) pieces
-      B (letter, number) -> if letter == targetletter && number == targetnumber then pieces else piece : removePiece (letter, number) pieces
+      P (letter, number) -> if letter == targetletter && number == targetnumber then pieces else piece : removePiece (targetletter, targetnumber) pieces
+      N (letter, number) -> if letter == targetletter && number == targetnumber then pieces else piece : removePiece (targetletter, targetnumber) pieces
+      K (letter, number) -> if letter == targetletter && number == targetnumber then pieces else piece : removePiece (targetletter, targetnumber) pieces
+      Q (letter, number) -> if letter == targetletter && number == targetnumber then pieces else piece : removePiece (targetletter, targetnumber) pieces
+      R (letter, number) -> if letter == targetletter && number == targetnumber then pieces else piece : removePiece (targetletter, targetnumber) pieces
+      B (letter, number) -> if letter == targetletter && number == targetnumber then pieces else piece : removePiece (targetletter, targetnumber) pieces
 
 
 changeLocation :: Piece -> Location -> Piece
@@ -199,22 +199,50 @@ changeLocation piece (endLetter, endNumber) =
     B _ -> B (endLetter, endNumber)
 
 
-editBoard :: Piece -> Location -> [Piece] -> [Piece]
-editBoard  _ _ [] = []
-editBoard targetPiece (endLetter, endNumber) (piece:pieces) = 
-  if targetPiece == piece
-    then
-      changeLocation targetPiece (endLetter, endNumber) : editBoard targetPiece (endLetter, endNumber) pieces
-    else
-      piece : editBoard targetPiece (endLetter, endNumber) pieces
+changePieceLocation :: Piece -> Location -> [Piece] -> [Piece]
+changePieceLocation _ _ [] = []
+changePieceLocation piece (endLetter, endNumber) (p:pieces) =
+  if piece == p then changeLocation piece (endLetter, endNumber) : pieces
+  else p : changePieceLocation piece (endLetter, endNumber) pieces
 
 
-filterByColour :: Piece -> [Piece] -> Bool
-filterByColour piece pieces =
-  if elem piece pieces
-    then True
-    else False 
+getPieceLetter :: Piece -> Char
+getPieceLetter piece =
+  case piece of
+    P (letter, _) -> letter
+    N (letter, _) -> letter
+    K (letter, _) -> letter
+    Q (letter, _) -> letter
+    R (letter, _) -> letter
+    B (letter, _) -> letter
 
+
+getPieceNumber :: Piece -> Int
+getPieceNumber piece =
+  case piece of
+    P (_, number) -> number
+    N (_, number) -> number
+    K (_, number) -> number
+    Q (_, number) -> number
+    R (_, number) -> number
+    B (_, number) -> number
+
+
+insertPieceSorted :: Piece -> [Piece] -> [Piece]
+insertPieceSorted piece [] = [piece]
+insertPieceSorted piece (p:pieces) = 
+    if number > afterNumber
+      then piece : p : pieces
+    else if indexof letter letters < indexof afterLetter letters && number == afterNumber
+      then piece : p : pieces
+    else p : insertPieceSorted piece pieces
+    where
+        letters = ['a','b','c','d','e','f','g','h']
+        letter = getPieceLetter piece
+        number = getPieceNumber piece
+        afterNumber = getPieceNumber p
+        afterLetter = getPieceLetter p
+        
 
 move:: Piece -> Location -> Board -> Board
 move piece location (player, whitePieces, blackPieces) =
@@ -227,11 +255,13 @@ move piece location (player, whitePieces, blackPieces) =
     else
       (
         enemy,
-        editBoard piece location removedWhitePieces,
-        editBoard piece location removedBlackPieces
+        newWhitePieces,
+        newBlackPieces
       )
     where
         enemy = if player == White then Black else White
-        enemyPieces = if player == White then blackPieces else whitePieces
-        removedWhitePieces = removePiece location whitePieces
-        removedBlackPieces = removePiece location blackPieces
+        editedWhitePieces = if player == Black then removePiece location editedWhitePieces else editedWhitePieces 
+        editedBlackPieces =  if player == White then removePiece location editedBlackPieces else editedBlackPieces
+        newWhitePieces =  if player == White then insertPieceSorted (changeLocation piece location) whitePieces else whitePieces
+        newBlackPieces = if player == Black then insertPieceSorted (changeLocation piece location) blackPieces else blackPieces
+        
