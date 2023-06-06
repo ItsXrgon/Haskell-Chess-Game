@@ -1,5 +1,3 @@
-import Debug.Trace
-
 type Location = (Char, Int)
 data Player = White | Black deriving (Show, Eq)
 data Piece = P Location | N Location | K Location | Q Location | R Location | B Location deriving (Show, Eq)
@@ -70,7 +68,7 @@ visualizeBoard (player, whitePieces, blackPieces) =
   "3 |" ++ visualizeRow whitePieces blackPieces (3, 0) ++ "\r\n" ++
   "2 |" ++ visualizeRow whitePieces blackPieces (2, 0) ++ "\r\n" ++
   "1 |" ++ visualizeRow whitePieces blackPieces (1, 0) ++ "\r\n" ++
-  "\n Turn: " ++ show player
+  "\nTurn: " ++ show player
 
 
 indexof :: Eq a => a -> [a] -> Int
@@ -199,12 +197,15 @@ changeLocation piece (endLetter, endNumber) =
     B _ -> B (endLetter, endNumber)
 
 
-changePieceLocation :: Piece -> Location -> [Piece] -> [Piece]
-changePieceLocation _ _ [] = []
-changePieceLocation piece (endLetter, endNumber) (p:pieces) =
-  if piece == p then changeLocation piece (endLetter, endNumber) : pieces
-  else p : changePieceLocation piece (endLetter, endNumber) pieces
-
+getPieceLocation :: Piece -> Location
+getPieceLocation piece =
+  case piece of
+    P (letter, number) -> (letter, number)
+    N (letter, number) -> (letter, number)
+    K (letter, number) -> (letter, number)
+    Q (letter, number) -> (letter, number)
+    R (letter, number) -> (letter, number)
+    B (letter, number) -> (letter, number)
 
 getPieceLetter :: Piece -> Char
 getPieceLetter piece =
@@ -260,8 +261,8 @@ move piece location (player, whitePieces, blackPieces) =
       )
     where
         enemy = if player == White then Black else White
-        editedWhitePieces = if player == Black then removePiece location editedWhitePieces else editedWhitePieces 
-        editedBlackPieces =  if player == White then removePiece location editedBlackPieces else editedBlackPieces
-        newWhitePieces =  if player == White then insertPieceSorted (changeLocation piece location) whitePieces else whitePieces
-        newBlackPieces = if player == Black then insertPieceSorted (changeLocation piece location) blackPieces else blackPieces
-        
+        editedWhitePieces = removePiece location (removePiece (getPieceLocation piece) whitePieces) 
+        editedBlackPieces = removePiece location (removePiece (getPieceLocation piece) blackPieces)
+        newPiece = changeLocation piece location
+        newWhitePieces =  if player == White then insertPieceSorted newPiece editedWhitePieces else editedWhitePieces
+        newBlackPieces = if player == Black then insertPieceSorted newPiece editedBlackPieces else editedBlackPieces
